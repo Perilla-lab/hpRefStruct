@@ -1,1 +1,40 @@
-Documentation
+Project: hpRefStruct
+
+Description: 
+A refinement tool contains these functions:
+1. build missing loops;
+2. structure validation and visualization;
+3. unsupervised iterative structure refinement;
+
+Table of Contents:
+1. prerequisite;
+2. usage.
+
+Prerequisite:
+This tool is depended on these softwares: 
+1.1 VMD (https://www.ks.uiuc.edu/Research/vmd/);
+1.2 Rosetta (https://www.rosettacommons.org/software);
+1.3 Molprobity (http://molprobity.biochem.duke.edu/).
+
+Usage:
+1. to run in VMD tk console:
+1.1 download and source the master script in the tk console;
+1.2 usage:
+proref ?-arg var? ...
+	-p pdb file
+	-m map file (in .map or .mrc format)
+	-r resolution of the map
+	-j job name
+	-n number of refinement iterations
+	-w weight of the density
+
+2. to run on Linux command line interface:
+1.1 edit run.tcl script, for example specify the paths to the pdb and map files
+1.2 then use the command shown as below to run in a Linux termial
+vmd -dispdev text -e run.tcl
+
+Useful reference:
+0. VMD userguide: https://www.ks.uiuc.edu/Research/vmd/current/ug/
+1. Top8000 database: http://kinemage.biochem.duke.edu/databases/top8000.php
+2. Rosetta tools for structure determination in density: https://www.rosettacommons.org/demos/latest/public/electron_density_structure_refinement/structure_refinement
+
