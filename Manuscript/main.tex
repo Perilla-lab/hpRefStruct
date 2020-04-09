@@ -1,0 +1,66 @@
+\documentclass[journal=jctcce,manuscript=article]{achemso}
+
+%%%%%%%%%%%%%%  LaTeX Configuration %%%%%%%%%%%%%%%
+\oddsidemargin  -0.4 in
+\evensidemargin -0.4 in
+\textheight      9.5 in
+\textwidth       7.2 in
+\topmargin      -0.7 in
+%%\topmargin      -0.3 in
+%\pagestyle{plain}
+%\pagestyle{empty}
+\parskip 2pt plus 1pt
+\baselineskip 11pt
+\itemsep 0em
+
+
+\usepackage{color}
+\usepackage{graphicx,wrapfig,graphics}
+\usepackage{amsmath,amsfonts,amssymb} 
+\usepackage{xspace}
+
+% Macros go here
+
+
+%\usepackage{hyperref}
+%%% Titles
+
+
+%\thispagestyle{empty}
+%\input{title}
+%\newpage
+%\setcounter{page}{1}
+
+
+
+\author{Juan R. Perilla} 
+\affiliation[University of Delaware]{
+  Department of Chemistry and Biochemistry,
+University of Delaware, Newark, Delaware 19716,
+United States
+}
+\email{jperilla@udel.edu}
+
+
+
+
+
+
+%\maketitle
+
+\title[Short Title]{Long title}
+
+\begin{document}
+\include{macros}
+\include{abstract}
+\include{introduction}
+%\include{results}
+\include{discussion}
+\include{methods}
+\include{supplementary}
+
+\newpage
+\bibliographystyle{unsrt}
+\bibliography{bibfiles/journals_long,bibfiles/group,bibfiles/tbpub}
+
+\end{document}
