@@ -132,6 +132,7 @@ proc greppdb { jobname iter } {
             break
         }
     }
+    puts "copy ${jobname}_run[expr ${iter} - 1]_0001.pdb to ${jobname}.pdb"
     flush $output
     close $input
     close $output
@@ -302,13 +303,13 @@ set binpath  /misc/chaoyi/src_builds/rosetta/rosetta_src_2018.42.60459_bundle/ma
 set dbpath   /misc/chaoyi/src_builds/rosetta/rosetta_src_2018.42.60459_bundle/main/database/
 
 # main function to execute
-proc proref { args } {
+proc hprs { args } {
     variable rosetta_bin_path
     variable rosetta_db_path
 
     # print usage if wrong input parameters
     if { [llength $args] % 2 } {
-        puts "usage: proref ?-arg var? ..."
+        puts "usage: hprs ?-arg var? ..."
         puts "\t-p pdb file"
         puts "\t-m map file (in .map or .mrc format)"
         puts "\t-r resolution of the map"
@@ -317,7 +318,7 @@ proc proref { args } {
         puts "\t-w weight of the density "
         error "Error: odd number of arguments: $args"
     } elseif { [llength $args] == 0 } {
-        puts "usage:tclsh proref ?-arg var? ..."
+        puts "usage: hprs ?-arg var? ..."
         puts "\t-p pdb file"
         puts "\t-m map file (in .map or .mrc format)"
         puts "\t-r resolution of the map"
