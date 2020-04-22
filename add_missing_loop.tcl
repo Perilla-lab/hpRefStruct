@@ -42,31 +42,102 @@ proc ::hprefstruct::separate_chain { pdb } {
 	set id [mol new $pdb]
 	set ary [::hprefstruct::identify_missing $pdb]
 	if { [llength $ary] == 0 } {
-
+		error "Cannot find missing residue record in $pdb ..."
 	} else {
 		foreach i $ary {
 			set chn [lindex $i 0]
 			set sel [atomselect $id "protein and chain $chn"]
 			set list1 [lrange $i 1 end]
-			set list1-1 [list]
-			set list1-2 [list]
-			foreach i j $list1 {
-				lappend list1-1 $i
-				lappend list1-2 $j
-			}
-			set list2 [lsort -u -integer [$sel get resid]]
+			set l2 [::hprefstruct::find_cons [lsort -u -integer [$sel get resid]]]
 			set tmp 0
-			foreach i j [::hprefstruct::find_cons $list2] {
-				[atomselect $id "protein and chain $chn and resid $i to $j"] writepdb [lindex [split $pdb .] 0].chain-$chn.$tmp.pdb
-				exec sed -i '1d;$d' [lindex [split $pdb .] 0].chain-$chn.$tmp.pdb
+			foreach {i j} $l2 {
+				set flna [lindex [split $pdb .] 0].chain-$chn.$tmp.pdb
+#				[atomselect $id "protein and chain $chn and resid $i to $j"] writepdb $flna
+				# to do: use tcl to realize sed
+#				exec sed -i "1d;\$d" $flna
 				incr tmp
 			}
-			foreach a ${list1-1} b $list2 {
-				
+			::hprefstruct::build_segments $chn $list1
+#			::hprefstruct::sort_list [lindex [split $pdb .] 0] $chn $list1 $l2		
 		}
 	}
 	mol delete $id
 }
+
+proc ::hprefstruct::build_segments { chn list1 } {
+        set list1-1 [list]
+        set list1-2 [list]
+        foreach {i j} $list1 {
+                lappend list1-1 $i
+                lappend list1-2 $j
+        }
+        set l1 [::hprefstruct::find_cons ${list1-1}]
+	set count 0
+	foreach {i j} $l1 {
+                set start [lsearch ${list1-1} $i]
+                set end [lsearch ${list1-1} $j]
+		for {set k $start} {$k <= $end} {incr k} {
+			set pdb "AAs_pdb/[lindex ${list1-2} $k].pdb"
+			file copy -force $pdb temp
+			set resid [lindex ${list1-1} $k]
+	                exec sed -i "s/ A / $chn /g" temp
+                        exec sed -i "s/   1   /$resid   /g" temp
+                        exec cat temp >> $chn.build.$count.pdb
+		}
+		incr count
+	}
+}
+
+proc ::hprefstruct::sort_list { name chn list1 l2 } {
+	set list1-1 [list]
+        set list1-2 [list]
+        foreach {i j} $list1 {
+	        lappend list1-1 $i
+                lappend list1-2 $j
+	}
+	set l1 [::hprefstruct::find_cons ${list1-1}]
+	set loop [open "loop_chain-$chn.loop" w]
+	file delete $chn.pdb
+	if { [llength $l1] > [llength $l2] } {
+		set start [lsearch ${list1-1} [lindex $l1 0]]
+		set end [lsearch ${list1-1} [lindex $l1 1]]
+		puts $loop "LOOP [lindex $l1 0] [expr [lindex $l1 1] + 1] [expr [lindex $l1 1] + 1] 0 1"
+		foreach {i j} [lrange $l1 2 end-2] {
+			puts $loop "LOOP [expr [lindex $l1 $i] - 1] [expr [lindex $l1 $j] + 1] [expr [lindex $l1 $j] + 1] 0 1"
+		}
+		puts $loop "LOOP [expr [lindex $l1 end-1] - 1] [lindex $l1 end] [expr [lindex $l1 end-1] - 1] 0 1"
+		close $loop
+		for {set i $start} {$i <= $end} {incr i} {
+			set pdb "AAs_pdb/[lindex ${list1-2} $i].pdb"
+			file copy -force $pdb temp
+			set resid [lindex ${list1-1} $i]
+			exec sed -i "s/ A / $chn /g" temp
+			exec sed -i "s/   1   /$resid  /g" temp
+			exec cat temp >> $chn.pdb
+		}
+		set l1_ [lrange $l1 2 end]
+		set k 0
+		foreach {i j} ${l1_} {
+			exec cat $name.chain-$chn.$k.pdb >> $chn.pdb
+			set start [lsearch ${list1-1} $i]
+			set end [lsearch ${list1-1} $j]
+			for {set l $start} {$l <= $end} {incr l} {
+				set pdb "AAs_pdb/[lindex ${list1-2} $l].pdb"
+				file copy -force $pdb temp
+				set resid [lindex ${list1-1} $l]
+                        	exec sed -i "s/ A / $chn /g" temp
+                        	exec sed -i "s/   1   /  $resid   /g" temp
+                        	exec cat temp >> $chn.pdb
+			}
+			incr k
+		}
+		
+	}
+	set id [mol new $chn.pdb]
+	[atomselect $id all] writepdb $chn.pdb
+	mol delete $id
+}
+
 
 proc ::hprefstruct::find_cons { list } {
 	set tmp [lindex $list 0]
@@ -119,10 +190,10 @@ proc ::hprefstruct::edit_chain { chain miss } {
 	
 }
 
-#set x [::hprefstruct::identify_missing 6vsb.pdb]
-#puts [lindex $x 0]
+set x [::hprefstruct::identify_missing 6vsb.pdb]
+puts [lindex $x 0]
 #puts [lindex $x 1]
 #puts [lindex $x 2]
-#separate_chain 6vsb.pdb
+::hprefstruct::separate_chain 6vsb.pdb
 
 
