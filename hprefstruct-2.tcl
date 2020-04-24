@@ -46,6 +46,33 @@ proc ::hprefstruct::rama { pdb } {
 	return [join [lsort -u -dictionary $temp1]]
 }
 
+proc ::hprefstruct::rama2 { pdb } {
+        variable molprobity_path
+        variable report
+        puts "Ramalyze $pdb ..."
+        set op [open $report a]
+        puts $op "\n##############################################"
+        puts $op "Ramalyze results:"
+        close $op
+        exec -ignorestderr -- ${molprobity_path}/phenix.ramalyze ${pdb} >> $report
+        puts "Finished Ramalyze $pdb"
+        set ip [open $report r]
+        set temp1 [list]
+        while {[gets $ip oline] >= 0} {
+                if { [regexp -- "Ramalyze results" $oline] } {
+                        while { [gets $ip iline] >= 0 } {
+                                if { [string is integer -strict [string range $iline 2 5]] && ([lindex [split [lindex $iline 2] :] 4] == "Allowed" || [lindex [split [lindex $iline 2] :] 4] == "OUTLIER" ) } {
+                                       lappend temp1 "[string range $iline 1 1] [string range $iline 2 5]"
+                                }
+                        }
+                }
+        }
+        unset -nocomplain oline iline
+        close $ip
+        return [join [lsort -u -dictionary $temp1]]
+}
+
+
 proc ::hprefstruct::rota { pdb } {
 	variable molprobity_path
 	variable report
@@ -176,11 +203,11 @@ proc ::hprefstruct::structural_analysis { pdb } {
 	puts $ip "##############################################\n"
 	close $ip
 
-	set ll [list [::hprefstruct::rama $pdb] [::hprefstruct::clash $pdb] [::hprefstruct::rota $pdb] [::hprefstruct::cbeta $pdb]]
+	set ll [list [::hprefstruct::rama2 $pdb] [::hprefstruct::clash $pdb] [::hprefstruct::rota $pdb] [::hprefstruct::cbeta $pdb]]
 	set x [::hprefstruct::combine $ll]
 	set ip [open $report a]
-	puts $ip "##############################################"
-	puts $ip "The list of problematic residues in iteration $iter are"
+	puts $ip "\n##############################################"
+	puts $ip "The list of problematic residues identified in iteration $iter are"
 	puts $ip "Chain	Residue"
 	foreach {chn id} [join $x] {
 		puts $ip "$chn	$id"
