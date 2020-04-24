@@ -153,7 +153,6 @@ proc ::hprefstruct::clash { pdb } {
         return [join [lsort -u -dictionary $temp1]]
 }
 
-# require example to debug
 proc ::hprefstruct::omega { pdb } {
 	variable molprobity_path
 	variable report
@@ -171,8 +170,7 @@ proc ::hprefstruct::omega { pdb } {
                         while { [gets $ip iline] >= 0 } {
                                 if [string is integer -strict [string range $iline 2 5]] {
                                         lappend temp1 "[string range $iline 1 1] [string range $iline 2 5]"
-                                        lappend temp1 "[string range $iline 18 18] [string range $iline 19 22]"
-
+                                        lappend temp1 "[string range $iline 16 16] [string range $iline 17 20]"
                                 }
                         }
                 }
@@ -203,7 +201,7 @@ proc ::hprefstruct::structural_analysis { pdb } {
 	puts $ip "##############################################\n"
 	close $ip
 
-	set ll [list [::hprefstruct::rama2 $pdb] [::hprefstruct::clash $pdb] [::hprefstruct::rota $pdb] [::hprefstruct::cbeta $pdb]]
+	set ll [list [::hprefstruct::rama2 $pdb] [::hprefstruct::clash $pdb] [::hprefstruct::rota $pdb] [::hprefstruct::cbeta $pdb] [::hprefstruct::omega $pdb]]
 	set x [::hprefstruct::combine $ll]
 	set ip [open $report a]
 	puts $ip "\n##############################################"

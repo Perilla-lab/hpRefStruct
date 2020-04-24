@@ -8,9 +8,9 @@
 #        -w weight of the density
 #######################################################
 
-source hprefstruct.tcl
+source hprefstruct-2.tcl
 
-set pdb [glob ????.pdb]
-set map [glob emd_*.map]
+set pdb #your pdb
+set map #cryo-EM map
 
-proref -w 5.0 -p $pdb -m $map -j ref-1
+hprs -w 5.0 -p $pdb -m $map -j refine-1
