@@ -310,9 +310,10 @@ proc ::hprefstruct::printH { chains } {
     close $op
 }
 
-proc ::hprefstruct::printM { list chi bb jobname } {
+proc ::hprefstruct::printM { list bb jobname } {
     variable iter
     set op [open run${iter}.xml a]
+	set chi 1
     foreach { chn res } $list {
         set resid [renumber $chn $res ${jobname}]
         puts $op "\t\t\t\t<Span begin=\"$resid\" end=\"$resid\" chi=\"${chi}\" bb=\"${bb}\"/> Chain=$chn Resid=$res"
@@ -398,6 +399,7 @@ proc ::hprefstruct::hprs { args } {
             -j { set jobname $value }
             -n { set n $value }
             -w { set weight $value }
+	    -s { set scheme $value }
             default { error "unknown argument: $name $value" }
         }
     }
@@ -424,37 +426,59 @@ proc ::hprefstruct::hprs { args } {
 	set start $n
     }
 
-    for { set i $start } { $i < 10 } { incr i } {
-	variable iter $i
-	display update ui
-        if { $i == 1 } {
-            file copy -force ${inputpdb} ${jobname}_run0_0001.pdb
-        }
+	if { [info exists scheme] == 0 } {
+		for { set i $start } { $i < 10 } { incr i } {
+			variable iter $i
+			display update ui
+		        if { $i == 1 } {
+		            file copy -force ${inputpdb} ${jobname}_run0_0001.pdb
+		        }
 
- 	::hprefstruct::greppdb ${jobname}
-	set problist [::hprefstruct::structural_analysis ${jobname}.pdb]
-        ::hprefstruct::printH [count ${jobname}.pdb] 
-        if { $i <= 3 } {
-            ::hprefstruct::printM $problist 1 0 ${jobname} 
-        } elseif { $i <= 6 } {
-            ::hprefstruct::printM $problist 1 1 ${jobname} 
-        } elseif { $i <= 9 } {
-            ::hprefstruct::printM [find_nbs2 ${jobname} 2.0 $problist] 1 1 ${jobname} 
-        } else {
-            ::hprefstruct::printM [find_nbs2 ${jobname} 3.0 $problist] 1 1 ${jobname} 
-        }
+		 	::hprefstruct::greppdb ${jobname}
+			set problist [::hprefstruct::structural_analysis ${jobname}.pdb]
+	        	::hprefstruct::printH [count ${jobname}.pdb] 
+		        if { $i <= 3 } {
+       			     ::hprefstruct::printM $problist 0 ${jobname} 
+	      		} elseif { $i <= 6 } {
+		            ::hprefstruct::printM $problist 1 ${jobname} 
+	        	} elseif { $i <= 9 } {
+		            ::hprefstruct::printM [find_nbs2 ${jobname} 2.0 $problist] 1 ${jobname} 
+		        } else {
+	        	    ::hprefstruct::printM [find_nbs2 ${jobname} 3.0 $problist] 1 ${jobname} 
+		        }
 
-        ::hprefstruct::printBash ${jobname}.pdb $density $resolution $weight
+		        ::hprefstruct::printBash ${jobname}.pdb $density $resolution $weight
 
-        puts "Start run${i} refinement ..."
-        exec sh rosetta.run${i}.sh > run${i}.log
-        puts "Finished run${i} refinement ..."
+	        	puts "Start run${i} refinement ..."
+		        exec sh rosetta.run${i}.sh > run${i}.log
+		        puts "Finished run${i} refinement ..."
 
-        ::hprefstruct::op_results ${jobname} 
-#        mpb ${jobname} ${i}
-        puts "Output run${i} refinement parameters and results ..."
-	::hprefstruct::close_all_files
-    }
+	        	::hprefstruct::op_results ${jobname} 
+		        puts "Output run${i} refinement parameters and results ..."
+			::hprefstruct::close_all_files
+    		}
+	} else {
+		variable iter $start
+		display update ui
+		if { $start == 1 } {
+                	file copy -force ${inputpdb} ${jobname}_run0_0001.pdb
+                }
+		::hprefstruct::greppdb ${jobname}
+                set problist [::hprefstruct::structural_analysis ${jobname}.pdb]
+                ::hprefstruct::printH [count ${jobname}.pdb]
+		
+		set bb [lindex $scheme 0]
+		set cutoff [lindex $scheme 1]
+		
+		::hprefstruct::printM [find_nbs2 ${jobname} $cutoff $problist] $bb ${jobname}
+		
+                puts "Start run${start} refinement ..."
+                exec sh rosetta.run${start}.sh > run${start}.log
+                puts "Finished run${start} refinement ..."
+
+                ::hprefstruct::op_results ${jobname}
+                puts "Output run${start} refinement parameters and results ..."
+                ::hprefstruct::close_all_files
+	}
 }
-
 
