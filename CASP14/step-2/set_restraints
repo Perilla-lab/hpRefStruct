@@ -1,0 +1,23 @@
+set input [lindex $argv 0]
+mol new $input.psf
+mol addfile [lindex $argv 1]
+#mol addfile output/equil4.restart.coor
+set all [atomselect top all]
+#$all moveby [vecinvert [measure center $all]]
+#$all writepdb $input.pdb
+##identify protein##
+set fixed [atomselect top "not ion and not water"]
+$fixed num
+$all set beta 0.0
+$fixed set beta 1.0
+$all writepdb restraints1.pdb
+##indentify backbone##
+set bb [atomselect top "(protein and backbone) or (segname IP6 DAT)"]
+$bb num
+$all set beta 0.0
+$bb set beta 1.0
+$all writepdb restraints2.pdb
+measure center [atomselect top all]
+
+exit
+

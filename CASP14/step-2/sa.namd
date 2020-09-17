@@ -1,0 +1,213 @@
+#################################################
+#	Model: 	Nucleotides			#
+#	JOB DESCRIPTION: production		#
+#	Note:  version-May 27			#
+#################################################
+#	Input and output parameters		#
+#################################################
+
+##### adding function ####
+
+proc get_first_ts { xscfile } {
+	set fd [open $xscfile r]
+	gets $fd
+	gets $fd
+	gets $fd line
+	set ts [lindex $line 0]
+	close $fd
+	return $ts
+}
+
+##############################
+
+set i x
+set temp 310
+set inputfile target41.preped
+set restrained restraints2.pdb
+set ffroot /work/biophysics/chaoyi/toppar/
+set inp equil4
+
+structure	$inputfile.psf
+coordinates	$inputfile.pdb
+paraTypeCharmm	on
+parameters	$ffroot/par_all36m_prot.prm
+parameters	$ffroot/par_all36_lipid.prm
+parameters	$ffroot/par_all36_na.prm
+parameters	$ffroot/par_all36_carb.prm
+parameters	$ffroot/par_all36_cgenff.prm
+parameters	$ffroot/toppar_water_ions_namd.str
+
+outputEnergies		5000
+outputMomenta		50000
+outputPressure		50000
+binaryoutput		yes
+DCDfreq			5000
+DCDUnitCell		yes
+restartfreq		50000
+#for adaptive tempering
+adaptTempOutFreq 	5000
+adaptTempRestartFreq 	5000
+
+### Restart parameters ###
+
+set root run-${i}
+file mkdir $root
+file mkdir output
+
+set n 0
+if {[file exists $root/SA-0.coor] != 0} {
+  while { [file exists $root/SA-[expr $n + 1].coor] != 0} {
+    incr n
+  }
+  binCoordinates	$root/SA-$n.coor
+  binVelocities		$root/SA-$n.vel
+  extendedSystem  	$root/SA-$n.xsc
+
+  firsttimestep		[get_first_ts $root/SA-$n.xsc]
+	
+  outputname		output/SA-run-$n
+} else {
+  binCoordinates	$inp.coor
+  binVelocities		$inp.vel
+  extendedSystem 	$inp.xsc
+  firsttimestep		0
+  outputname		output/SA-$i
+}
+
+#################################################
+#	Dynamics				#
+#################################################
+
+timestep		1.0
+wrapAll			on
+wrapNearest		off	
+
+### Electrostatic options ###
+fullElectFrequency	4
+exclude			scaled1-4
+nonbondedFreq		2
+1-4scaling		1.0
+switching		on
+vdwForceSwitching	off
+#switchdist		10.0
+#cutoff			12.0
+#pairlistdist		13.5
+stepsPerCycle		20
+
+### PME options ###
+PME			yes
+PMEPencils		1
+PMETolerance		1.0e-6
+PMEInterpOrder		4
+PMEGridSpacing		1.0
+
+### Implicite solvent ###
+gbis off
+alphacutoff         14.
+switchdist          15.
+cutoff              16.
+pairlistdist        17.
+#ionconcentration    0.15
+#solventDielectric   80.0
+#sasa                on
+
+### SHAKE ###
+if (0) {
+rigidBonds       all
+rigidTolerance   1.0e-5
+}
+
+#################################################
+#	Temperature control			#
+#################################################
+
+langevin		on
+#langevinTemp		$temp
+langevinDamping		2
+
+#################################################
+#	Pressure control			#
+#################################################
+
+#turn on grouppressure when using SHAKE
+useGroupPressure	no
+useFlexibleCell		yes
+useConstantRatio	no
+useConstantArea		yes
+
+LangevinPiston       	off
+LangevinPistonTarget 	1.01325
+LangevinPistonPeriod	200
+LangevinPistonDecay 	100
+#LangevinPistonTemp  	$temp
+
+Multigrator			off
+MultigratorPressureTarget	1.0
+MultigratorPressureFreq		600
+MultigratorTemperatureTarget 	$temp
+MultigratorTemperatureFreq 	12
+MultigratorNoseHooverChainLength 4
+
+#################################################
+#	SMD and restrain options		#
+#################################################
+
+SMD			off
+SMDFile			$restrained
+SMDk			25.0
+SMDk2			0.01
+SMDVel			0.00001
+SMDDir			0.0 0.0 -1.0
+SMDOutputFreq		500
+
+fixedAtoms             	off
+fixedAtomsFile          $restrained
+fixedAtomsCol           B       # o or B
+
+extraBonds off
+extraBondsCosAngles off
+extraBondsFile  eb-new.txt
+
+constraints             on
+consref         	$restrained
+conskfile       	$restrained
+conskcol                B
+constraintScaling       0.25
+
+colvars			off
+colvarsConfig		restrain.in
+
+#Margin 1
+#################################################
+#	Adaptive Tempering			#
+#################################################
+
+adaptTempMD off
+adaptTempLangevin on
+adaptTempRescaling off
+adaptTempDt 0.00010
+adaptTempCgamma 0.0
+
+#################################################
+
+for {set x $n} {$x < 10} {incr x} {
+
+	for { set TEMP 150 } { $TEMP <= 350 } { incr TEMP 50 } { 
+		langevinTemp	$TEMP 
+		LangevinPistonTemp $TEMP 		
+		run		500000
+	} 
+                langevinTemp    350
+                LangevinPistonTemp 350
+		run		500000
+
+	for { set TEMP 350 } { $TEMP >= 150 } { incr TEMP -10 } { 
+		langevinTemp	$TEMP 
+		LangevinPistonTemp $TEMP 		
+		run		500000
+	}
+
+	minimize 1000
+	
+	output $root/SA-$x
+}

@@ -1,0 +1,317 @@
+#########################################################
+# Description:						#
+# namd2 config file for equilibrating system		#
+# Version: 2018-09-25					#
+#	add longsplitting option			#
+#	use langevinTemp control in Equil step		#
+#########################################################
+#	function definition				#
+#########################################################
+
+proc get_first_ts { xscfile } {
+	set fd [open $xscfile r]
+	gets $fd
+	gets $fd
+	gets $fd line
+	set ts [lindex $line 0]
+	close $fd
+	return $ts
+}
+
+proc get_a { pdbfile } {
+        set pdbfile [open $pdbfile r]
+        gets $pdbfile line
+        set Ca [lindex $line 1]
+        close $pdbfile
+        return $Ca
+	unset Ca
+}
+
+proc get_b { pdbfile } {
+        set pdbfile [open $pdbfile r]
+        gets $pdbfile line
+        set Cb [lindex $line 2]
+        close $pdbfile
+        return $Cb
+	unset Cb
+}
+
+proc get_c { pdbfile } {
+        set pdbfile [open $pdbfile r]
+        gets $pdbfile line
+        set Cc [lindex $line 3]
+        close $pdbfile
+        return $Cc
+	unset Cc
+}
+
+proc get_gamma { pdbfile } {
+        set pdbfile [open $pdbfile r]
+        gets $pdbfile line
+        set Cgamma [lindex $line 6]
+        close $pdbfile
+        return $Cgamma
+	unset Cgamma
+}
+
+#########################################################
+#	Input and output parameters			#
+#########################################################
+
+set mini 20000
+set heat 250000
+set equi 250000
+
+set temp 310
+set inputfile target46.preped
+set setfix restraints1.pdb
+set setrstr restraints2.pdb
+set root  /misc/chaoyi/toppar
+
+structure	$inputfile.psf
+coordinates	$inputfile.pdb
+paraTypeCharmm	on
+parameters	$root/par_all36m_prot.prm
+parameters	$root/par_all36_lipid.prm
+parameters	$root/par_all36_na.prm
+parameters	$root/par_all36_carb.prm
+parameters	$root/par_all36_cgenff.prm
+#parameters	$root/toppar_all36_carb_glycopeptide.str
+parameters	$root/toppar_water_ions_namd.str
+
+outputEnergies	5000
+outputMomenta	5000
+outputPressure	5000
+binaryoutput	yes
+DCDfreq		5000
+DCDUnitCell	yes
+restartfreq	5000
+
+### Restart options ###
+
+file mkdir output
+if {[file exists output/equil1.restart.coor] != 0} {
+	set n 1
+	while { [file exists output/equil[expr $n + 1].restart.coor] != 0} {
+		incr n
+	}
+	binCoordinates		output/equil$n.restart.coor
+	binVelocities		output/equil$n.restart.vel
+	extendedSystem		output/equil$n.restart.xsc
+	#restart file for Colvars
+        colvarsInput            output/equil$n.restart.colvars.state
+	outputname		output/equil[expr $n + 1]
+	set fts [get_first_ts output/equil$n.restart.xsc]
+	firsttimestep		$fts
+	if {$fts < $mini} {
+		set	status	1
+		set	lts	$mini
+	} elseif {$fts >= $mini && $fts < [expr $mini + $heat] } {
+		set 	status	2
+		set 	lts 	[expr $mini + $heat]
+	} else {
+		set	status	3
+		set 	lts	[expr $mini + $heat + $equi]
+	}
+} else {
+	set status 1 
+	if {[get_gamma $inputfile.pdb] == 120.0} {
+		set v1 [get_a $inputfile.pdb]
+		set v2 [expr -1 * $v1 / 2]
+		set v3 0.0
+		lappend v2 [expr $v1 * sqrt(3)/2] 0.0
+		lappend v1 0.0 0.0
+		lappend v3 0.0 [get_c $inputfile.pdb]
+	} elseif {[get_gamma $inputfile.pdb] == 90.0} {
+		set v1 [get_a $inputfile.pdb]
+		lappend v1 0.0 0.0
+		set v2 0.0
+		lappend v2 [get_b $inputfile.pdb] 0.0
+		set v3 0.0
+		lappend v3 0.0 [get_c $inputfile.pdb]
+	}
+
+	cellBasisVector1        $v1
+	cellBasisVector2        $v2
+	cellBasisVector3        $v3
+	cellOrigin		1.0638583262334578e-5 1.2948514267918654e-5 0.00013551866868510842
+
+	temperature		$temp
+
+#	binCoordinates		mdff-step24.restart.coor
+#	binVelocities		mdff-step24.restart.vel
+#	extendedSystem		mdff-step24.restart.xsc
+
+	outputname		output/equil1
+	firsttimestep		0
+	set lts	$mini
+}
+
+#numsteps       $lts
+
+#########################################################
+#	Restraints, fixatom and colvars			#
+#########################################################
+
+### restraints ###
+#constraints		off
+consref			$setrstr
+conskfile		$setrstr
+conskcol		B	# o or B
+#constraintScaling	10.0
+
+### fixatom ###
+
+#fixedAtoms		off
+fixedAtomsFile		$setfix
+fixedAtomsCol		B	# o or B
+
+### colvars restrain ###
+
+colvars			off
+colvarsConfig		restrain.in
+
+#########################################################
+#	Dynamics					#
+#########################################################
+
+timestep		2.0
+wrapAll			yes
+
+if {[get_gamma $inputfile.pdb] == 120.0} {
+	wrapNearest		yes
+}
+
+### Electrostatic options ###
+nonbondedFreq		1
+fullElectFrequency	2
+exclude			scaled1-4
+1-4scaling		1.0
+switching		on
+vdwForceSwitching	off
+switchdist		10.0
+cutoff			12.0
+pairlistdist		13.5
+stepsPerCycle		20
+longsplitting		c2
+
+### PME options ###
+PME			yes
+PMEPencils		1
+PMETolerance		1.0e-6
+PMEInterpOrder		4
+PMEGridSpacing		1.0
+
+### SHAKE ###
+rigidBonds       all
+rigidTolerance   1.0e-5
+
+#########################################################
+#	1.Minimization					#
+#	choose one minimization method and    	 	#
+#	turn off pressure control, temp control 	#
+#	constraints, heating and equilibration  	#
+#########################################################
+
+if { $status == 1 } {
+#conjugate gradient minimization
+minimization		on
+#velocity quenching minimization, choose one of them
+#velocityQuenching	on
+
+useGroupPressure	no    
+useFlexibleCell		no
+useConstantRatio	no
+useConstantArea		no
+
+if { [info exists n] == 0 } {
+fixedAtoms		on
+} else {
+constraints		on
+constraintScaling	10.0
+}
+
+minimize		[expr $mini / 2]
+}
+
+#########################################################
+#	2.heating					#
+#	turn on heating, pressure control and   	#
+#	constrains, turn off minimization and   	#
+#	equilibration                           	#
+#########################################################
+
+if { $status == 2 } {
+#temperature reassignment method
+#reassignFreq		40
+#reassignTemp		0
+#reassignIncr		3
+#reassignHold		310
+
+langevin                on
+langevinDamping         2.0
+
+useGroupPressure	yes    
+useFlexibleCell		yes
+useConstantRatio	no
+useConstantArea		yes
+
+LangevinPiston       	off
+LangevinPistonTarget 	1.01325
+LangevinPistonPeriod	200
+LangevinPistonDecay 	100
+
+constraints		on
+constraintScaling	10.0
+
+set itemp 130
+set ftemp $temp
+set tempsteps 20
+set nsteps_per_run [expr $heat/(($ftemp - $itemp)/$tempsteps + 1)]
+
+#reinitvels $itemp
+
+for {set mytemp $itemp} {$mytemp <= $ftemp} {incr mytemp $tempsteps} {
+	langevinTemp $mytemp
+	langevinPistonTemp $mytemp
+	run $nsteps_per_run    
+}
+}
+
+#########################################################
+#	3.Equilibration					#
+#	turn on equlibrate and turn off heating 	#
+#	and minimization, adjust constrans      	#
+#########################################################
+
+if { $status == 3 } {
+langevin		on
+langevinTemp		$temp
+langevinDamping		2.0
+
+useGroupPressure	yes    
+useFlexibleCell		yes
+useConstantRatio	no
+useConstantArea		yes
+
+LangevinPiston       	on
+LangevinPistonTarget 	1.01325
+LangevinPistonPeriod	200
+LangevinPistonDecay 	100
+LangevinPistonTemp  	$temp
+
+constraints		on
+
+set ik 10
+set fk 1
+set ksteps 1
+set nsteps_per_run [expr $equi/(($ik - $fk)/$ksteps + 1)]
+
+for {set myk $ik} {$myk >= $fk} {set myk [expr $myk - $ksteps]} {
+	constraintScaling $myk
+	run $nsteps_per_run    
+}
+}
+
+#########################################################
+#########################################################

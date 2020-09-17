@@ -1,0 +1,17 @@
+id=46
+
+#vmd -dispdev text -e set_restraints -args target$id.preped target$id.preped.pdb
+#/home/chaoyi/local/bin/namd2 +p8 equil.namd > 1.mini.log
+
+#vmd -dispdev text -e set_restraints -args target$id.preped output/equil1.restart.coor
+#/home/chaoyi/local/bin/namd2 +p8 equil.namd > 2.mini.log
+
+#vmd -dispdev text -e set_restraints -args target$id.preped output/equil2.restart.coor
+#/home/chaoyi/local/bin/namd2 +p8 equil.namd > 3.heat.log
+
+vmd -dispdev text -e set_restraints -args target$id.preped output/equil4.restart.coor
+/home/chaoyi/local/bin/namd2 +p8 equil.namd > 5.equil.log
+
+#vmd -dispdev text -e set_restraints -args 3zsj.preped output/equil4.restart.coor
+#namd2 +p3 equil.namd > 5.equil.log
+

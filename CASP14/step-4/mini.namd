@@ -1,0 +1,122 @@
+
+set x baba
+set input target$x.preped
+set PSFFILE $input.psf
+set PDBFILE $input.pdb
+
+set DIEL 1
+set SCALING_1_4 1.0
+set ITEMP 310
+set FTEMP 310
+
+set CONSPDB 0
+set FIXPDB  0
+set FIXCOL B
+
+ file mkdir output
+#set INPUTNAME output/mdff-step1
+set OUTPUTNAME output/mini-1
+ 
+set TS 0
+set MS 5000000
+ 
+set MARGIN 0
+ 
+####################################
+ 
+structure $PSFFILE
+coordinates $PDBFILE
+ 
+set ffroot /misc/chaoyi/toppar
+
+paraTypeCharmm on
+parameters  $ffroot/par_all36m_prot.prm
+parameters  $ffroot/par_all36_lipid.prm
+parameters  $ffroot/par_all36_na.prm
+parameters  $ffroot/par_all36_carb.prm
+parameters  $ffroot/par_all36_cgenff.prm
+parameters  $ffroot/toppar_water_ions_namd.str
+
+if {[info exists INPUTNAME]} {
+  BinVelocities $INPUTNAME.restart.vel
+  BinCoordinates $INPUTNAME.restart.coor
+} else {
+  temperature $ITEMP
+}
+ 
+
+firsttimestep   0
+
+# Force-Field Parameters
+exclude             scaled1-4
+1-4scaling          $SCALING_1_4
+switching           on
+vdwforceswitching   on
+dielectric          $DIEL
+margin              $MARGIN 
+
+  gbis off
+  alphacutoff         14.
+  switchdist          10.
+  cutoff              12.
+  pairlistdist        14.
+  ionconcentration    0.1
+  solventDielectric   80.0
+  sasa                on
+
+
+# Integrator Parameters
+timestep            1.0  ;# 1fs/step
+rigidBonds          water  ;# TIP3P
+nonbondedFreq       2
+fullElectFrequency  4  
+stepspercycle       20
+
+# Constant Temperature Control 
+if {$ITEMP == $FTEMP} {
+  langevin            on    ;# do langevin dynamics
+  langevinDamping     5     ;# damping coefficient (gamma) of 5/ps
+  langevinTemp        $FTEMP
+  langevinHydrogen    off    ;# don't couple langevin bath to hydrogens
+} else {
+  reassignFreq 1000
+  if {$FTEMP > $ITEMP} {
+    reassignIncr 10 
+  } else {
+    reassignIncr -10 
+  }
+  reassignTemp $ITEMP
+  reassignHold $FTEMP
+}
+    
+# Output
+outputName         $OUTPUTNAME
+restartfreq        1000     
+dcdfreq            1000
+outputEnergies      100
+outputPressure      100
+
+
+# Positional restraints
+if {$CONSPDB != 0} {
+  Constraints                    yes
+  ConsExp                        2
+  ConsRef                        $CONSPDB
+  ConsKFile                      $CONSPDB
+  ConskCol                       $CONSCOL
+}
+
+# Fixed atoms
+if {$FIXPDB != 0} {
+  fixedAtoms                yes
+  fixedAtomsFile            $FIXPDB
+  fixedAtomsCol             $FIXCOL
+}
+
+#############################################################
+## EXECUTION SCRIPT                                        ##
+#############################################################
+
+
+minimize 1000
+
