@@ -279,20 +279,26 @@ proc ::hprefstruct::find_nbs2 { jobname cutoff reslist } {
     set id [mol new ${jobname}.pdb]
     set temp1   [list]
     foreach { chn res } $reslist {
-        lappend temp1 [[atomselect $id "chain $chn and resid $res"] get index]
+        set tempsel1 [atomselect $id "chain $chn and resid $res"]
+        lappend temp1 [$tempsel1 get index]
+        $tempsel1 delete
     }
     set temp2   [join $temp1]
-    set nbs     [[atomselect $id "same residue as within $cutoff of (index $temp2)"] get index]
+    set nbsel   [atomselect $id "same residue as within $cutoff of (index $temp2)"]
+    set nbs     [$nbsel get index]
+    $nbsel delete
 
     set temp3   [list]
     foreach index $nbs {
-        set ch [[atomselect $id "index $index"] get chain]
-        set re [[atomselect $id "index $index"] get resid]
+        set tmp [atomselect $id "index $index"]
+        set ch [$tmp get chain]
+        set re [$tmp get resid]
         if { [info exists $ch.$re] } {
         } else {
             set $ch.$re 0
             lappend temp3 $ch $re
         }
+        $tmp delete
     }
     mol delete all
     return $temp3
